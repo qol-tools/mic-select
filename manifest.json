@@ -1,0 +1,17 @@
+{
+  "required_api_version": "2",
+  "name": "Mic Switcher",
+  "description": "Quickly switch microphone input using PipeWire/PulseAudio",
+  "developer_name": "KMRH47",
+  "icon": "icon.png",
+  "id": "mic-switcher.kmrh47",
+  "preferences": [
+    {
+      "id": "keyword",
+      "type": "keyword",
+      "name": "Mic Switcher",
+      "description": "Keyword to activate microphone switcher",
+      "default_value": "mic"
+    }
+  ]
+}
