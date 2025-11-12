@@ -84,7 +84,6 @@ class PactlClient:
     def move_streams_to_source(self, source_name: str) -> None:
         """Move all active input streams to source."""
         try:
-            # Get list of source outputs
             result = subprocess.run(
                 ["pactl", "list", "short", "source-outputs"],
                 capture_output=True,
@@ -101,7 +100,6 @@ class PactlClient:
                 logger.debug("No active source outputs found")
                 return
             
-            # Move each stream individually
             moved_count = 0
             for line in result.stdout.splitlines():
                 parts = line.split("\t")

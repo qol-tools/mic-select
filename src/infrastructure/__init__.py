@@ -1,1 +1,1 @@
-"""Infrastructure layer."""
+"""Infrastructure layer for audio system interactions."""
