@@ -1,6 +1,10 @@
 # Mic Switcher
 
-Quick microphone switcher for macOS (Raycast) and Linux (Ulauncher).
+Quick microphone switcher.
+
+Works on:
+- macOS (Raycast)
+- Linux (Ulauncher)
 
 ## Install
 
