@@ -1,21 +1,41 @@
-/** Utility functions for Raycast extension. */
 import { execSync } from "child_process";
 import { showToast, Toast } from "@raycast/api";
 import { join } from "path";
 
-// Calculate path to CLI script relative to extension root
 function getCliScriptPath(): string {
-  // In Raycast, __dirname points to the compiled JS location in dist/src
-  // The CLI script should be bundled in the extension root as raycast_cli.py
-  const extensionRoot = __dirname.replace(/\/dist\/src$/, "").replace(/\/src$/, "");
-  return join(extensionRoot, "raycast_cli.py");
+  let currentPath = __dirname;
+
+  for (let i = 0; i < 5; i++) {
+    const cliPath = join(currentPath, "raycast_cli.py");
+    try {
+      execSync(`test -f "${cliPath}"`, { stdio: "ignore" });
+      return cliPath;
+    } catch {
+      currentPath = join(currentPath, "..");
+    }
+  }
+
+  const fallbackPaths = [
+    join(__dirname, "..", "raycast_cli.py"),
+    join(__dirname, "..", "..", "raycast_cli.py"),
+    join(__dirname.replace(/\/dist.*$/, ""), "raycast_cli.py"),
+    join(__dirname.replace(/\/src.*$/, ""), "raycast_cli.py"),
+  ];
+
+  for (const cliPath of fallbackPaths) {
+    try {
+      execSync(`test -f "${cliPath}"`, { stdio: "ignore" });
+      return cliPath;
+    } catch {
+      continue;
+    }
+  }
+
+  return fallbackPaths[0];
 }
 
 const CLI_SCRIPT_PATH = getCliScriptPath();
 
-/**
- * Find Python 3 executable.
- */
 export function findPythonExecutable(): string {
   const paths = [
     "/usr/bin/python3",
@@ -28,36 +48,38 @@ export function findPythonExecutable(): string {
       execSync(`"${path}" --version`, { stdio: "ignore" });
       return path;
     } catch {
-      // Continue searching
+      continue;
     }
   }
 
-  // Try which as fallback
   try {
     const result = execSync("which python3", { encoding: "utf-8" }).trim();
     if (result) {
       return result;
     }
-  } catch {
-    // Fallback failed
-  }
+  } catch {}
 
   throw new Error(
     "Python 3 not found. Please ensure Python 3 is installed and available in PATH."
   );
 }
 
-/**
- * Execute CLI command and return parsed JSON.
- */
 export function executeCliCommand<T>(args: string[]): T {
   const python = findPythonExecutable();
-  const command = [python, CLI_SCRIPT_PATH, ...args];
+
+  const quotedArgs = args.map(arg => {
+    if (arg.includes(" ") || arg.includes("'") || arg.includes('"')) {
+      return `"${arg.replace(/"/g, '\\"')}"`;
+    }
+    return arg;
+  });
+
+  const command = [python, `"${CLI_SCRIPT_PATH}"`, ...quotedArgs];
 
   try {
     const output = execSync(command.join(" "), {
       encoding: "utf-8",
-      maxBuffer: 1024 * 1024, // 1MB
+      maxBuffer: 1024 * 1024,
     });
 
     return JSON.parse(output.trim()) as T;
@@ -65,22 +87,18 @@ export function executeCliCommand<T>(args: string[]): T {
     if (error instanceof Error) {
       if (error.message.includes("ENOENT") || error.message.includes("not found")) {
         throw new Error(
-          `Python 3 not found. Please ensure Python 3 is installed and available in PATH.`
+          `CLI script not found at: ${CLI_SCRIPT_PATH}\nPython: ${python}\nPlease run 'make install' to set up the extension.`
         );
       }
-      // Try to extract stderr if available
-      const errorMessage = (error as any).stderr 
-        ? `${error.message}: ${(error as any).stderr}`
-        : error.message;
-      throw new Error(`CLI execution failed: ${errorMessage}`);
+      const stderr = (error as any).stderr || "";
+      const stdout = (error as any).stdout || "";
+      const errorMessage = stderr || stdout || error.message;
+      throw new Error(`CLI execution failed: ${errorMessage}\nScript: ${CLI_SCRIPT_PATH}`);
     }
     throw new Error(`CLI execution failed: ${String(error)}`);
   }
 }
 
-/**
- * Parse and validate JSON output from CLI.
- */
 export function parseJsonOutput<T>(output: string): T {
   try {
     return JSON.parse(output.trim()) as T;
@@ -89,9 +107,6 @@ export function parseJsonOutput<T>(output: string): T {
   }
 }
 
-/**
- * Show error toast notification.
- */
 export async function showErrorToast(message: string): Promise<void> {
   await showToast({
     style: Toast.Style.Failure,
@@ -100,9 +115,6 @@ export async function showErrorToast(message: string): Promise<void> {
   });
 }
 
-/**
- * Show success toast notification.
- */
 export async function showSuccessToast(message: string): Promise<void> {
   await showToast({
     style: Toast.Style.Success,

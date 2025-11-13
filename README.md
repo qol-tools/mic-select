@@ -1,10 +1,6 @@
 # Mic Switcher
 
-Quick microphone switcher.
-
-Works for:
-- **macOS**: Raycast script commands (free tier)
-- **Linux**: Ulauncher
+Quick microphone switcher for macOS (Raycast) and Linux (Ulauncher).
 
 ## Install
 
@@ -12,11 +8,9 @@ Works for:
 make install
 ```
 
-**macOS**: Add script directory to Raycast (path shown after install).
-
 ## Use
 
-Open Raycast, type `mic` to list/switch microphones.
+Type `mic` in Raycast/Ulauncher to list and switch microphones.
 
 ## Uninstall
 

@@ -16,8 +16,12 @@ class TestPactlClientListSources:
         mock_run.return_value = MagicMock(
             returncode=0,
             stdout=(
-                "0\talsa_input.pci-0000_00_1f.3.analog-stereo\tPipeWire\n"
-                "1\talsa_output.pci-0000_00_1f.3.iec958-stereo.monitor\tPipeWire\n"
+                "Source #0\n"
+                "\tName: alsa_input.pci-0000_00_1f.3.analog-stereo\n"
+                "\tDescription: Built-in Audio Analog Stereo\n"
+                "Source #1\n"
+                "\tName: alsa_output.pci-0000_00_1f.3.iec958-stereo.monitor\n"
+                "\tDescription: Monitor of Built-in Audio Digital Stereo\n"
             ),
         )
 
@@ -26,6 +30,7 @@ class TestPactlClientListSources:
 
         assert len(result.sources) == 1
         assert result.sources[0].name == "alsa_input.pci-0000_00_1f.3.analog-stereo"
+        assert result.sources[0].description == "Built-in Audio Analog Stereo"
         # Should filter out monitor sources
         for source in result.sources:
             assert "monitor" not in source.name.lower()

@@ -117,6 +117,14 @@ class TestShellTimeout:
 
     def test_pactl_with_timeout_wrapper(self):
         """Test real pactl with timeout wrapper."""
+        # Check if timeout command exists (Linux only)
+        timeout_check = subprocess.run(
+            ["which", "timeout"],
+            capture_output=True,
+        )
+        if timeout_check.returncode != 0:
+            pytest.skip("timeout command not available (Linux-only)")
+
         try:
             cmd = "timeout 0.15 pactl list short sources 2>/dev/null"
             result = subprocess.run(

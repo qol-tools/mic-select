@@ -37,23 +37,68 @@ build-raycast:
 	@echo "✓ Build complete"
 
 test:
-	@.venv/bin/pytest
+	@echo "Running all tests..."
+	@if [ -f .venv/bin/pytest ]; then \
+		echo "Running Python unit tests..."; \
+		.venv/bin/pytest; \
+	elif command -v pytest >/dev/null 2>&1; then \
+		echo "Running Python unit tests..."; \
+		pytest; \
+	else \
+		echo "⊘ Skipping Python unit tests (pytest not found)"; \
+	fi
+	@if [ "$(UNAME)" = "Darwin" ]; then \
+		echo ""; \
+		echo "Running Raycast extension tests..."; \
+		cd macos/raycast && python3 test_raycast_cli.py && \
+		if [ -f node_modules/.bin/jest ]; then npm run test:unit; else echo "⊘ Skipping Jest tests (not installed)"; fi; \
+	fi
+	@echo ""
+	@echo "✓ All tests completed"
 
 test-unit:
-	@.venv/bin/pytest tests/unit -v
+	@if [ -f .venv/bin/pytest ]; then \
+		.venv/bin/pytest tests/unit -v; \
+	elif command -v pytest >/dev/null 2>&1; then \
+		pytest tests/unit -v; \
+	else \
+		echo "Error: pytest not found. Run 'pip install -r requirements.txt'"; \
+		exit 1; \
+	fi
 
 test-integration:
-	@.venv/bin/pytest tests/integration -v
+	@if [ -f .venv/bin/pytest ]; then \
+		.venv/bin/pytest tests/integration -v; \
+	elif command -v pytest >/dev/null 2>&1; then \
+		pytest tests/integration -v; \
+	else \
+		echo "Error: pytest not found. Run 'pip install -r requirements.txt'"; \
+		exit 1; \
+	fi
 
 test-macos:
 	@if [ "$$(uname)" = "Darwin" ]; then \
-		.venv/bin/pytest tests/unit/test_macos_audio_service.py -v; \
+		if [ -f .venv/bin/pytest ]; then \
+			.venv/bin/pytest tests/unit/test_macos_audio_service.py -v; \
+		elif command -v pytest >/dev/null 2>&1; then \
+			pytest tests/unit/test_macos_audio_service.py -v; \
+		else \
+			echo "Error: pytest not found"; \
+			exit 1; \
+		fi; \
 	else \
 		echo "Skipping macOS tests (not on macOS)"; \
 	fi
 
 test-coverage:
-	@.venv/bin/pytest --cov=src --cov-report=html --cov-report=term
+	@if [ -f .venv/bin/pytest ]; then \
+		.venv/bin/pytest --cov=src --cov-report=html --cov-report=term; \
+	elif command -v pytest >/dev/null 2>&1; then \
+		pytest --cov=src --cov-report=html --cov-report=term; \
+	else \
+		echo "Error: pytest not found. Run 'pip install -r requirements.txt'"; \
+		exit 1; \
+	fi
 
 format:
 	@.venv/bin/black src tests main.py macos/cli/raycast_cli.py

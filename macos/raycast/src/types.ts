@@ -1,5 +1,3 @@
-/** TypeScript interfaces matching Python JSON output. */
-
 export interface AudioSource {
   name: string;
   index: number;

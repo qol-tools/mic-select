@@ -1,4 +1,3 @@
-"""macOS audio system client using SwitchAudioSource."""
 import logging
 import subprocess
 import shutil
@@ -9,19 +8,8 @@ logger = logging.getLogger(__name__)
 
 
 class MacOSAudioClient:
-    """macOS audio client using SwitchAudioSource CLI tool."""
     
     def __init__(self, timeout: float = 0.5, set_source_timeout: float = 1.0):
-        """
-        Initialize macOS audio client.
-        
-        Args:
-            timeout: Timeout for listing sources (seconds)
-            set_source_timeout: Timeout for setting default source (seconds)
-            
-        Raises:
-            RuntimeError: If SwitchAudioSource tool is not found
-        """
         self.timeout = timeout
         self.set_source_timeout = set_source_timeout
         self._switch_audio_source_path = self._find_switch_audio_source()
@@ -32,7 +20,6 @@ class MacOSAudioClient:
             )
     
     def _find_switch_audio_source(self) -> Optional[str]:
-        """Find SwitchAudioSource executable."""
         paths = [
             "/usr/local/bin/SwitchAudioSource",
             "/opt/homebrew/bin/SwitchAudioSource",
@@ -46,10 +33,9 @@ class MacOSAudioClient:
         return None
     
     def list_sources(self) -> AudioSourceList:
-        """List audio input sources."""
         try:
             result = subprocess.run(
-                [self._switch_audio_source_path, "-a"],
+                [self._switch_audio_source_path, "-a", "-t", "input"],
                 capture_output=True,
                 text=True,
                 timeout=self.timeout
@@ -80,7 +66,6 @@ class MacOSAudioClient:
             return AudioSourceList([])
     
     def set_default_source(self, source_name: str) -> None:
-        """Set default audio input source."""
         try:
             result = subprocess.run(
                 [self._switch_audio_source_path, "-s", source_name, "-t", "input"],
@@ -106,11 +91,5 @@ class MacOSAudioClient:
             raise RuntimeError(f"Error switching audio source: {e}")
     
     def move_streams_to_source(self, source_name: str) -> None:
-        """
-        Move all active input streams to source.
-        
-        On macOS, setting the default input source automatically handles
-        routing for most applications. This method is a no-op for compatibility.
-        """
         logger.debug(f"move_streams_to_source called for '{source_name}' (no-op on macOS)")
         pass
