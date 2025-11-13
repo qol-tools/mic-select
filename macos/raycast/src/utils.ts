@@ -2,11 +2,6 @@
 import { execSync } from "child_process";
 import { showToast, Toast } from "@raycast/api";
 import { join } from "path";
-import {
-  ListSourcesResponse,
-  SwitchSourceResponse,
-  ErrorResponse,
-} from "./types";
 
 // Calculate path to CLI script relative to extension root
 function getCliScriptPath(): string {

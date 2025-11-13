@@ -1,6 +1,6 @@
 /** List Microphones command implementation. */
 import { useState, useEffect } from "react";
-import { List, showToast, Toast, ActionPanel, Action, Icon } from "@raycast/api";
+import { List, ActionPanel, Action, Icon } from "@raycast/api";
 import { executeCliCommand, showErrorToast, showSuccessToast } from "./utils";
 import { ListSourcesResponse, ErrorResponse, AudioSource } from "./types";
 
