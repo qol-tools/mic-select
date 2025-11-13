@@ -12,11 +12,6 @@ Works for:
 make install
 ```
 
-**macOS**: After install, run:
-```bash
-cd macos/raycast && npm run dev
-```
-
 ## Use
 
 Open launcher, type `mic`, select microphone.

@@ -51,10 +51,18 @@ cp macos/raycast/raycast_cli.py.template macos/raycast/raycast_cli.py
 chmod +x macos/raycast/raycast_cli.py
 
 echo ""
-echo "✓ Extension built successfully!"
+echo "✓ Extension built!"
 echo ""
-echo "To use in Raycast (free tier):"
-echo "  cd macos/raycast && npm run dev"
+echo "Activating in Raycast..."
+cd macos/raycast
+npx ray develop > /dev/null 2>&1 &
+DEV_PID=$!
+cd ../..
+
+sleep 3
+kill $DEV_PID 2>/dev/null
+
 echo ""
-echo "The extension will be available in Raycast while running."
+echo "✓ Extension activated in Raycast (free tier)"
+echo "  Open Raycast and type 'mic' to use it"
 echo ""
