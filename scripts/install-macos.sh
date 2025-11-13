@@ -3,8 +3,7 @@
 
 set -e
 
-RAYCAST_EXT_DIR="$HOME/Library/Application Support/com.raycast.macos/extensions"
-RAYCAST_TARGET="$RAYCAST_EXT_DIR/select-mic"
+SCRIPTS_DIR="$HOME/.raycast-scripts/mic-switcher"
 
 echo "Installing for macOS (Raycast)..."
 
@@ -24,45 +23,23 @@ fi
 
 # Install Python dependencies
 echo "Installing Python dependencies..."
-pip3 install -r requirements.txt >/dev/null 2>&1 || echo "Warning: Failed to install Python dependencies"
+pip3 install -r requirements.txt >/dev/null 2>&1 || true
 
-# Build extension
-echo "Building Raycast extension..."
-cd macos/raycast
-npm install --silent
-npm run build
-cd ../..
+# Create scripts directory
+mkdir -p "$SCRIPTS_DIR"
 
-# Create installation directory
-mkdir -p "$RAYCAST_EXT_DIR"
-
-# Remove old installation if exists
-if [ -d "$RAYCAST_TARGET" ] || [ -L "$RAYCAST_TARGET" ]; then
-    rm -rf "$RAYCAST_TARGET"
-fi
-
-# Copy required Python source to extension directory
-mkdir -p macos/raycast/lib
-rsync -a src/ macos/raycast/lib/src/
-rsync -a macos/cli/src/ macos/raycast/lib/macos/cli/src/
-
-# Copy CLI wrapper template
-cp macos/raycast/raycast_cli.py.template macos/raycast/raycast_cli.py
-chmod +x macos/raycast/raycast_cli.py
+# Copy everything to scripts directory
+echo "Installing Raycast scripts..."
+rsync -a --exclude='.git' --exclude='node_modules' --exclude='__pycache__' . "$SCRIPTS_DIR/"
 
 echo ""
-echo "✓ Extension built!"
+echo "✓ Scripts installed to: $SCRIPTS_DIR"
 echo ""
-echo "Activating in Raycast..."
-cd macos/raycast
-npx ray develop > /dev/null 2>&1 &
-DEV_PID=$!
-cd ../..
-
-sleep 3
-kill $DEV_PID 2>/dev/null
-
+echo "Add this directory to Raycast:"
+echo "  1. Open Raycast → Settings (⌘,)"
+echo "  2. Go to Extensions → Script Commands"
+echo "  3. Click 'Add Directories'"
+echo "  4. Select: $SCRIPTS_DIR/raycast-scripts"
 echo ""
-echo "✓ Extension activated in Raycast (free tier)"
-echo "  Open Raycast and type 'mic' to use it"
+echo "Then type 'List Microphones' or 'Switch Microphone' in Raycast!"
 echo ""
