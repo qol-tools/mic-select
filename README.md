@@ -1,10 +1,6 @@
 # Mic Switcher
 
-Quick microphone switcher.
-
-Works on:
-- macOS (Raycast)
-- Linux (Ulauncher)
+Quick microphone switcher for macOS (Raycast) and Linux (Ulauncher).
 
 ## Install
 
@@ -16,14 +12,24 @@ make install
 
 Type `mic` in Raycast/Ulauncher to list and switch microphones.
 
-### Virtual Routing (Optional)
+### For Teams/Zoom
 
-For apps that don't respect system defaults (Teams, Zoom):
+Apps like Teams and Zoom often ignore system defaults. To force them to follow your mic switches:
 
-1. Install BlackHole: `brew install blackhole-2ch`
-2. Start daemon: `./macos/mic-router-daemon`
-3. Set apps to use "BlackHole 2ch" as input
-4. Switch mics normally - daemon routes to BlackHole
+1. **Create an Aggregate Device** (one-time setup):
+   - Open Audio MIDI Setup (`/Applications/Utilities/Audio MIDI Setup.app`)
+   - Click `+` → "Create Aggregate Device"
+   - Name it `Aggregate Device`
+   - Add all your mics (check the "Use" boxes)
+
+2. **Set Teams/Zoom to use it**:
+   - Teams → Settings → Devices → Microphone → `Aggregate Device`
+   - Zoom → Settings → Audio → Microphone → `Aggregate Device`
+
+3. **Switch mics normally**:
+   - Type `mic` in Raycast → select any mic
+   - The aggregate device updates automatically
+   - Teams/Zoom follow instantly
 
 ## Uninstall
 
