@@ -3,7 +3,7 @@
 Quick microphone switcher.
 
 Works for:
-- **macOS**: Raycast
+- **macOS**: Raycast (free tier compatible)
 - **Linux**: Ulauncher
 
 ## Install
@@ -12,7 +12,10 @@ Works for:
 make install
 ```
 
-**macOS**: Import extension in Raycast (path shown after install).
+**macOS**: After install, run:
+```bash
+cd macos/raycast && npm run dev
+```
 
 ## Use
 

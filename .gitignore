@@ -62,3 +62,4 @@ package-lock.json
 macos/raycast/dist/
 macos/raycast/raycast-env.d.ts
 macos/raycast/raycast_cli.py
+macos/raycast/lib/

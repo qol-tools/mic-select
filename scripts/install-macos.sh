@@ -41,26 +41,20 @@ if [ -d "$RAYCAST_TARGET" ] || [ -L "$RAYCAST_TARGET" ]; then
     rm -rf "$RAYCAST_TARGET"
 fi
 
-# Copy extension files
-echo "Installing extension to Raycast..."
-rsync -a --exclude='node_modules' --exclude='.git' macos/raycast/ "$RAYCAST_TARGET/"
-
-# Copy required Python source
-mkdir -p "$RAYCAST_TARGET/lib"
-rsync -a src/ "$RAYCAST_TARGET/lib/src/"
-rsync -a macos/cli/src/ "$RAYCAST_TARGET/lib/macos/cli/src/"
+# Copy required Python source to extension directory
+mkdir -p macos/raycast/lib
+rsync -a src/ macos/raycast/lib/src/
+rsync -a macos/cli/src/ macos/raycast/lib/macos/cli/src/
 
 # Copy CLI wrapper template
-cp macos/raycast/raycast_cli.py.template "$RAYCAST_TARGET/raycast_cli.py"
-chmod +x "$RAYCAST_TARGET/raycast_cli.py"
+cp macos/raycast/raycast_cli.py.template macos/raycast/raycast_cli.py
+chmod +x macos/raycast/raycast_cli.py
 
 echo ""
-echo "✓ Extension installed to: $RAYCAST_TARGET"
+echo "✓ Extension built successfully!"
 echo ""
-echo "Opening Raycast Extensions..."
-open -a Raycast raycast://extensions 2>/dev/null || open -a Raycast
-
+echo "To use in Raycast (free tier):"
+echo "  cd macos/raycast && npm run dev"
 echo ""
-echo "Final step: In Raycast, click 'Import Extension' and select:"
-echo "  $RAYCAST_TARGET"
+echo "The extension will be available in Raycast while running."
 echo ""
