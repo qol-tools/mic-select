@@ -16,7 +16,7 @@
 
 # Get script directory and find Python CLI
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 CLI_PATH="$PROJECT_ROOT/macos/cli/mic_cli.py"
 
 # Check if CLI exists
