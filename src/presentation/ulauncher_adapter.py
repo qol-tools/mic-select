@@ -1,6 +1,9 @@
 """Ulauncher extension adapter."""
 import shlex
-from typing import List
+import threading
+import subprocess
+import logging
+from typing import Callable, Optional
 from ulauncher.api.client.Extension import Extension
 from ulauncher.api.client.EventListener import EventListener
 from ulauncher.api.shared.event import KeywordQueryEvent
@@ -12,112 +15,266 @@ from src.application.list_sources_use_case import ListSourcesUseCase
 from src.application.switch_source_use_case import SwitchSourceUseCase
 from src.domain.audio_source import AudioSourceList
 
+logger = logging.getLogger(__name__)
 
-class MicSwitcherPresenter:
-    """Presents microphone switching options to Ulauncher."""
-    
+
+class DeviceChangeNotifier:
+    def __init__(self, callback: Optional[Callable[[], None]] = None):
+        self._callback = callback
+
+    def notify(self):
+        if not self._callback:
+            return
+
+        self._callback()
+
+
+class PactlSubscribeReader:
+    def __init__(self):
+        self._process: Optional[subprocess.Popen] = None
+
+    def start(self):
+        self._process = subprocess.Popen(
+            ["pactl", "subscribe"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        )
+
+    def read_line(self) -> Optional[str]:
+        if not self._process:
+            return None
+
+        return self._process.stdout.readline()
+
+    def terminate(self):
+        if not self._process:
+            return
+
+        self._process.terminate()
+
+
+class SourceEventDetector:
+    def detect(self, line: str) -> bool:
+        return "source" in line.lower()
+
+
+class PulseAudioDeviceMonitor:
     def __init__(
         self,
-        list_use_case: ListSourcesUseCase,
-        switch_use_case: SwitchSourceUseCase,
-        max_sources: int = 10,
-        notification_expire_time: int = 1500
+        notifier: DeviceChangeNotifier,
+        reader: PactlSubscribeReader,
+        detector: SourceEventDetector,
     ):
-        self._list_use_case = list_use_case
-        self._switch_use_case = switch_use_case
-        self._max_sources = max_sources
+        self._notifier = notifier
+        self._reader = reader
+        self._detector = detector
+        self._monitor_thread: Optional[threading.Thread] = None
+        self._running = False
+
+    def start(self):
+        if self._running:
+            return
+
+        self._running = True
+        self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self._monitor_thread.start()
+        logger.debug("PulseAudio device monitor started")
+
+    def stop(self):
+        self._running = False
+        if not self._monitor_thread:
+            return
+
+        self._monitor_thread.join(timeout=1)
+        logger.debug("PulseAudio device monitor stopped")
+
+    def _monitor_loop(self):
+        try:
+            self._reader.start()
+        except Exception as e:
+            logger.warning(f"Failed to monitor devices: {e}")
+            return
+
+        while self._running:
+            self._process_monitor_line()
+
+        self._reader.terminate()
+
+    def _process_monitor_line(self):
+        try:
+            line = self._reader.read_line()
+        except Exception as e:
+            logger.warning(f"Error reading pactl subscribe: {e}")
+            self._running = False
+            return
+
+        if not line:
+            self._running = False
+            return
+
+        if not self._detector.detect(line):
+            return
+
+        logger.debug(f"Device event detected: {line.strip()}")
+        self._notifier.notify()
+
+
+class SwitchCommandBuilder:
+    def __init__(self, notification_expire_time: int):
         self._notification_expire_time = notification_expire_time
-    
-    def create_switch_command(self, source_name: str, display_name: str = "") -> str:
-        """Create command script to switch source."""
+
+    def build(self, source_name: str, display_name: str) -> str:
         escaped_name = shlex.quote(source_name)
-        safe_display_name = shlex.quote((display_name or source_name)[:50])
-        
+        safe_display_name = shlex.quote(display_name[:50] if display_name else source_name)
+
         return f"""pactl set-default-source {escaped_name} 2>&1 && \
 for stream_id in $(pactl list short source-outputs 2>/dev/null | cut -f1); do
     if [ -n "$stream_id" ]; then
         pactl move-source-output "$stream_id" {escaped_name} 2>&1 || true
     fi
 done && notify-send 'Microphone Changed' {safe_display_name} --icon=audio-input-microphone --expire-time={self._notification_expire_time}"""
-    
-    def present_sources(self, query: str) -> RenderResultListAction:
-        """
-        Present sources as Ulauncher items.
-        
-        Args:
-            query: Search query string (will be sanitized)
-            
-        Returns:
-            RenderResultListAction with items to display
-        """
-        # Sanitize query - limit length to prevent abuse
-        sanitized_query = query[:100] if query else ""
-        sources = self._list_use_case.execute(query=sanitized_query, limit=self._max_sources)
-        
-        items = []
-        
+
+
+class QuerySanitizer:
+    MAX_LENGTH = 100
+
+    def sanitize(self, query: str) -> str:
+        return query[:self.MAX_LENGTH] if query else ""
+
+
+class SourcesItemFactory:
+    ICON_PATH = "icon.png"
+    DEFAULT_DESCRIPTION = "Set as default microphone"
+
+    def create_source_items(
+        self,
+        sources: AudioSourceList,
+        command_builder: SwitchCommandBuilder,
+    ) -> list:
+        return [
+            ExtensionResultItem(
+                icon=self.ICON_PATH,
+                name=source.display_name(),
+                description=self.DEFAULT_DESCRIPTION,
+                on_enter=RunScriptAction(
+                    command_builder.build(source.name, source.display_name()),
+                    None
+                ),
+            )
+            for source in sources.sources
+        ]
+
+    def create_empty_sources_item(self) -> ExtensionResultItem:
+        return ExtensionResultItem(
+            icon=self.ICON_PATH,
+            name="No microphones found",
+            description="Make sure PulseAudio/PipeWire is running",
+            on_enter=None
+        )
+
+    def create_no_matches_item(self, total_sources: int) -> ExtensionResultItem:
+        return ExtensionResultItem(
+            icon=self.ICON_PATH,
+            name="No matching sources",
+            description=f"Found {total_sources} source(s) total",
+            on_enter=None
+        )
+
+    def create_error_item(self) -> ExtensionResultItem:
+        return ExtensionResultItem(
+            icon=self.ICON_PATH,
+            name="Error",
+            description="",
+            on_enter=None
+        )
+
+
+class SourcesPresentationStrategy:
+    def present(
+        self,
+        sources: AudioSourceList,
+        query: str,
+        factory: SourcesItemFactory,
+        command_builder: SwitchCommandBuilder,
+    ) -> list:
         if sources.is_empty():
-            items.append(
-                ExtensionResultItem(
-                    icon="icon.png",
-                    name="No microphones found",
-                    description="Make sure PulseAudio/PipeWire is running",
-                    on_enter=None
-                )
-            )
-        else:
-            for source in sources.sources:
-                items.append(
-                    ExtensionResultItem(
-                        icon="icon.png",
-                        name=source.display_name(),
-                        description="Set as default microphone",
-                        on_enter=RunScriptAction(
-                            self.create_switch_command(source.name, source.display_name()),
-                            None
-                        ),
-                    )
-                )
-            
-            # If query provided but no matches
-            if query and len(items) == 0:
-                items.append(
-                    ExtensionResultItem(
-                        icon="icon.png",
-                        name="No matching sources",
-                        description=f"Found {len(sources.sources)} source(s) total",
-                        on_enter=None
-                    )
-                )
-        
-        if not items:
-            items.append(
-                ExtensionResultItem(
-                    icon="icon.png",
-                    name="Error",
-                    description="",
-                    on_enter=None
-                )
-            )
-        
+            return [factory.create_empty_sources_item()]
+
+        items = factory.create_source_items(sources, command_builder)
+
+        if items:
+            return items
+
+        if query:
+            return [factory.create_no_matches_item(len(sources.sources))]
+
+        return [factory.create_error_item()]
+
+
+class MicSwitcherPresenter:
+    def __init__(
+        self,
+        list_use_case: ListSourcesUseCase,
+        switch_use_case: SwitchSourceUseCase,
+        max_sources: int = 10,
+        notification_expire_time: int = 1500,
+    ):
+        self._list_use_case = list_use_case
+        self._switch_use_case = switch_use_case
+        self._max_sources = max_sources
+        self._notification_expire_time = notification_expire_time
+
+        self._sanitizer = QuerySanitizer()
+        self._command_builder = SwitchCommandBuilder(notification_expire_time)
+        self._item_factory = SourcesItemFactory()
+        self._presentation_strategy = SourcesPresentationStrategy()
+
+        notifier = DeviceChangeNotifier(self._on_device_change)
+        reader = PactlSubscribeReader()
+        detector = SourceEventDetector()
+
+        self._device_monitor = PulseAudioDeviceMonitor(notifier, reader, detector)
+        self._device_monitor.start()
+
+    def _on_device_change(self):
+        logger.debug("Device change detected")
+
+    def present_sources(self, query: str) -> RenderResultListAction:
+        sanitized_query = self._sanitizer.sanitize(query)
+        sources = self._list_use_case.execute(query=sanitized_query, limit=self._max_sources)
+
+        items = self._presentation_strategy.present(
+            sources,
+            sanitized_query,
+            self._item_factory,
+            self._command_builder,
+        )
+
         return RenderResultListAction(items)
 
 
 class KeywordQueryEventListener(EventListener):
-    """Handles keyword query events from Ulauncher."""
-    
     def __init__(self, presenter: MicSwitcherPresenter):
         self._presenter = presenter
-    
+
     def on_event(self, event: KeywordQueryEvent, extension) -> RenderResultListAction:
-        """Handle keyword query event."""
         query = event.get_argument() or ""
         return self._presenter.present_sources(query)
 
 
 class MicSwitcherExtension(Extension):
-    """Ulauncher extension for microphone switching."""
-    
     def __init__(self, presenter: MicSwitcherPresenter):
         super(MicSwitcherExtension, self).__init__()
+        self._presenter = presenter
         self.subscribe(KeywordQueryEvent, KeywordQueryEventListener(presenter))
+
+    def __del__(self):
+        if not hasattr(self, "_presenter"):
+            return
+
+        if not self._presenter:
+            return
+
+        self._presenter._device_monitor.stop()
