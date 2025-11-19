@@ -1,9 +1,8 @@
 """Main entry point for Ulauncher extension."""
 import logging
-from src.dependency_injection.container import Container
-from src.presentation.ulauncher_adapter import MicSwitcherExtension
+from lib.dependency_injection.container import Container
+from lib.presentation.ulauncher_adapter import MicSwitcherExtension
 
-# Configure logging
 logging.basicConfig(
     level=logging.WARNING,
     format='%(asctime)s [%(levelname)8s] %(name)s: %(message)s'

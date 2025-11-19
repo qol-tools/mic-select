@@ -5,6 +5,37 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+int device_has_input_channels(AudioDeviceID deviceID) {
+    AudioObjectPropertyAddress prop = {
+        kAudioDevicePropertyStreamConfiguration,
+        kAudioObjectPropertyScopeInput,
+        kAudioObjectPropertyElementMain
+    };
+
+    UInt32 size;
+    if (AudioObjectGetPropertyDataSize(deviceID, &prop, 0, NULL, &size) != noErr) {
+        return 0;
+    }
+
+    AudioBufferList *bufferList = malloc(size);
+    if (!bufferList) {
+        return 0;
+    }
+
+    if (AudioObjectGetPropertyData(deviceID, &prop, 0, NULL, &size, bufferList) != noErr) {
+        free(bufferList);
+        return 0;
+    }
+
+    UInt32 totalChannels = 0;
+    for (UInt32 i = 0; i < bufferList->mNumberBuffers; i++) {
+        totalChannels += bufferList->mBuffers[i].mNumberChannels;
+    }
+
+    free(bufferList);
+    return totalChannels > 0;
+}
+
 AudioDeviceID find_device_by_name(const char *name) {
     AudioObjectPropertyAddress prop = {
         kAudioHardwarePropertyDevices,
@@ -34,15 +65,17 @@ AudioDeviceID find_device_by_name(const char *name) {
             kAudioObjectPropertyScopeGlobal,
             kAudioObjectPropertyElementMain
         };
-        
+
         if (AudioObjectGetPropertyData(devices[i], &nameProp, 0, NULL, &nameSize, &deviceName) == noErr && deviceName) {
             char cName[256];
             CFStringGetCString(deviceName, cName, sizeof(cName), kCFStringEncodingUTF8);
             CFRelease(deviceName);
-            
+
             if (strstr(cName, name) != NULL) {
-                found = devices[i];
-                break;
+                if (device_has_input_channels(devices[i])) {
+                    found = devices[i];
+                    break;
+                }
             }
         }
     }

@@ -9,7 +9,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -62,4 +61,3 @@ package-lock.json
 macos/raycast/dist/
 macos/raycast/raycast-env.d.ts
 macos/raycast/raycast_cli.py
-macos/raycast/lib/
