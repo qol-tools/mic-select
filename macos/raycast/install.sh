@@ -42,6 +42,7 @@ npm run build
 RAYCAST_EXT_DIR="$HOME/.config/raycast/extensions/select-mic"
 if [ -d "$RAYCAST_EXT_DIR" ]; then
     cp "$SCRIPT_DIR/raycast_cli.py" "$RAYCAST_EXT_DIR/"
+    cp -r "$PROJECT_ROOT/lib" "$RAYCAST_EXT_DIR/"
 fi
 
 npx ray develop > /dev/null 2>&1 &
